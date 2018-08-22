@@ -1,0 +1,29 @@
+{
+  "name": "bom-scraper",
+  "version": "1.0.0",
+  "description": "Scrape board of medicine for new licenses",
+  "main": "./dist/index.js",
+  "scripts": {
+    "start": "tsc && node ./dist/index.js"
+  },
+  "author": "Jordan Hansen",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/json2csv": "^4.2.0",
+    "@types/mailgun-js": "^0.16.0",
+    "@types/osmosis": "^1.1.0",
+    "@types/puppeteer": "^1.6.0",
+    "@types/request": "^2.47.1",
+    "typescript": "^3.0.1"
+  },
+  "dependencies": {
+    "puppeteer-helpers": "1.0.1",
+    "database-helpers": "1.0.14",
+    "json2csv": "^4.2.0",
+    "mailgun-js": "^0.20.0",
+    "osmosis": "^1.1.8",
+    "puppeteer": "^1.7.0",
+    "request": "^2.87.0",
+    "webhook-discord": "^2.3.0"
+  }
+}
