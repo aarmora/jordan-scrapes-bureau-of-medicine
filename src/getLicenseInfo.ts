@@ -1,7 +1,9 @@
 import { ILicense } from './models';
+import puppeteer, { Browser, ElementHandle, Page } from 'puppeteer';
+import { setUpNewPage, getPropertyByHandle, getPropertyBySelector } from 'puppeteer-helpers';
 
 
-export async function getListOfLicenses(osmosis: any, viewState: string) {
+export async function getListOfLicenses(viewState: string, foundDetails: any[] = [], ubuntu = false, headless = true) {
     const formData = {
         ctl00$CPH1$txtsrcOriginalLicenseDate: "8-1-2018",
         ctl00$ScriptManager1: "ctl00$CPH1$UpdatePnl0|ctl00$CPH1$btnGoFind",
@@ -12,42 +14,123 @@ export async function getListOfLicenses(osmosis: any, viewState: string) {
         __ASYNCPOST: true,
         ctl00$CPH1$btnGoFind: "Start Search"
     };
-    const acceptableCities = ['BOISE', 'KUNA', 'STAR', 'EAGLE', 'NAMPA', 'CALDWELL', 'MERIDIAN'];
 
-    return new Promise((resolve, reject) => {
+    let browser: Browser;
+    try {
+        if (ubuntu) {
+            browser = await puppeteer.launch({ headless: true, args: [`--window-size=${1800},${1200}`, '--no-sandbox', '--disable-setuid-sandbox'] });
+        }
+        else {
+            browser = await puppeteer.launch({ headless: headless, args: [`--window-size=${1800},${1200}`] });
+        }
+
         try {
             const url = 'https://isecure.bom.idaho.gov/BOMPublic/LPRBrowser.aspx';
-            const results: any[] = [];
-            osmosis.post(url, formData, { timeout: 10000 })
-                .click('.btnNext')
-                .find('.Grid tr:gt(0)')
-                .follow('td[3] a@href')
-                .set({
-                    name: '#ctl00_CPH1_txtLicenseeName@value',
-                    licenseStatus: '#ctl00_CPH1_txtLicenseStatus@value',
-                    streetAddress1: '#ctl00_CPH1_txtAddress1@value',
-                    streetAddress2: '#ctl00_CPH1_txtAddress2@value',
-                    cityStateZip: '#ctl00_CPH1_txtCityStateZip@value',
-                    profession: '#ctl00_CPH1_txtProfessionDescription@value',
-                    licenseType: '#ctl00_CPH1_txtLicenseTypeDescription@value'
-                })
-                .data((data: ILicense) => {
-                    data.city = data.cityStateZip.split(' ')[0].trim();
-                    data.state = data.cityStateZip.split(' ')[1].trim();
-                    data.zip = data.cityStateZip.split(' ')[2].trim();
-                    if (data.licenseStatus === 'New License' && acceptableCities.some(city => data.city.indexOf(city) >= 0)) {
-                        console.log('data', data);
-                        results.push(data);
-                    }
-                })
-                .done(() => resolve(results))
-                .error(err => {
-                    reject(`Direct osmosis error ${err}`);
-                });
+            const page = await setUpNewPage(browser);
+            await page.setViewport({ height: 1200, width: 1900 });
+            await page.goto(url);
+            await page.type('#ctl00_CPH1_txtsrcOriginalLicenseDate', '8-1-2018');
+            await page.click('#ctl00_CPH1_btnGoFind');
+            await page.waitForSelector('#ctl00_CPH1_PnlGrid');
+            let currentPage = 1;
+            let totalPages = 1;
+            const totalPagesHTML = await getPropertyBySelector(page, '#ctl00_CPH1_lblPage strong', 'innerHTML');
+            totalPages = parseInt(totalPagesHTML.trim().split(' ')[3]);
+
+            while (currentPage <= totalPages) {
+                console.log('Searching page ****** ', currentPage);
+                let rows = await page.$$('.GridItemStyle');
+                if (rows) {
+                    await handleRows(rows, browser);
+                }
+
+                let aRows = await page.$$('.GridAItemStyle');
+                if (aRows) {
+                    await handleRows(aRows, browser);
+                }
+                currentPage++;
+                await page.click('#ctl00_CPH1_btnNext');
+                await delay(750);
+            }
+
         }
         catch (e) {
-            reject(`Error getting new list of results, ${e}`);
+            return Promise.reject(`Error setting up puppeteer page, ${e}`);
         }
-    });
+    }
+    catch (e) {
+        return Promise.reject(`Error setting up puppeteer browser, ${e}`);
+    }
+}
 
+export async function handleRows(rows: ElementHandle[], browser: Browser) {
+    const acceptableCities = ['BOISE', 'KUNA', 'STAR', 'EAGLE', 'NAMPA', 'CALDWELL', 'MERIDIAN'];
+    for (let i = 0; i < rows.length; i++) {
+        const cells = await rows[i].$$('td');
+        /**
+         * Result cells legend
+         * 0 - Details image/link
+         * 1 - Name (Last, First)
+         * 2 - License number
+         * 3 - Expiration
+         * 4 - Current
+         * 5 - Status
+         * 6 - Status date,
+         * 7 - Actions
+         * 8 - Posting date
+         * 9 - City, State, Zip
+         * 10 - Profession
+         * 11 - License Type
+         */
+
+
+        const licenseType = await getPropertyByHandle(cells[5], 'innerHTML');
+        const cityStateZip = await getPropertyByHandle(cells[9], 'innerHTML');
+        const city = cityStateZip.trim().split(' ')[0].trim().toLowerCase();
+        // If it's a new license and in the treasure valley, let's get all the details
+        // console.log('city test', city, acceptableCities.some(acceptableCity => city.indexOf(acceptableCity) >= 0));
+        if (licenseType.trim() === 'New License' && acceptableCities.some(acceptableCity => city.indexOf(acceptableCity.toLowerCase()) >= 0)) {
+            const detailsUrl = await getPropertyBySelector(cells[0], 'a', 'href');
+            await getDetails(browser, detailsUrl);
+        }
+    }
+    return Promise.resolve();
+}
+
+export async function getDetails(browser: Browser, url: string) {
+    try {
+        let details: any = {};
+        const page = await setUpNewPage(browser);
+        await page.setViewport({ height: 1200, width: 1900 });
+        await page.goto(url);
+        details.name = (await getPropertyBySelector(page, '#ctl00_CPH1_txtLicenseeName', 'value')).trim();
+        details.businessPhone = (await getPropertyBySelector(page, '#ctl00_CPH1_txtShopPhoneNo', 'value')).trim();
+        details.streetAddress1 = (await getPropertyBySelector(page, '#ctl00_CPH1_txtAddress1', 'value')).trim();
+        details.streetAddress2 = (await getPropertyBySelector(page, '#ctl00_CPH1_txtAddress2', 'value')).trim();
+        details.cityStateZip = (await getPropertyBySelector(page, '#ctl00_CPH1_txtCityStateZip', 'value')).trim();
+        const cityStateZipSplit = details.cityStateZip.split(' ');
+        details.city = cityStateZipSplit[0];
+        details.state = cityStateZipSplit[1];
+        details.zip = cityStateZipSplit[2];
+        details.board = (await getPropertyBySelector(page, '#ctl00_CPH1_txtBureauName', 'value')).trim();
+        details.licenseType = (await getPropertyBySelector(page, '#ctl00_CPH1_txtLicenseTypeDescription', 'value')).trim();
+        details.number = (await getPropertyBySelector(page, '#ctl00_CPH1_txtLicenseNumber', 'value')).trim();
+        details.dateOfIssue = (await getPropertyBySelector(page, '#ctl00_CPH1_txtLicenseIssueDate', 'value')).trim();
+        details.status = (await getPropertyBySelector(page, '#ctl00_CPH1_txtLicenseStatus', 'value')).trim();
+
+
+        console.log('details', details);
+        page.close();
+
+        return Promise.resolve();
+    }
+    catch (e) {
+        return Promise.reject(`Error on details page, ${e}`);
+    }
+}
+
+function delay(time) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, time)
+    });
 }
