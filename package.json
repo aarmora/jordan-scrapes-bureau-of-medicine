@@ -6,7 +6,7 @@
   "scripts": {
     "start": "tsc && node ./dist/index.js",
     "start:ubuntu": "tsc && node ./dist/index.js ubuntu",
-    "start:withHead": "tsc && node ./dist/index.js headless"
+    "start:withHead": "tsc && node ./dist/index.js withHead"
   },
   "author": "Jordan Hansen",
   "license": "ISC",

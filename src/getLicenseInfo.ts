@@ -1,9 +1,9 @@
-import { ILicense } from './models';
 import puppeteer, { Browser, ElementHandle, Page } from 'puppeteer';
 import { setUpNewPage, getPropertyByHandle, getPropertyBySelector } from 'puppeteer-helpers';
+import { getPhoneFromFindPerson, getPhoneFromReverseAddress } from './wpHelpers';
+import { config } from './config';
 
-
-export async function getListOfLicenses(viewState: string, foundDetails: any[] = [], ubuntu = false, headless = true) {
+export async function getListOfLicenses(viewState: string, foundDetails: any[] = [], ubuntu = false, headless = true, date?: string) {
     const formData = {
         ctl00$CPH1$txtsrcOriginalLicenseDate: "8-1-2018",
         ctl00$ScriptManager1: "ctl00$CPH1$UpdatePnl0|ctl00$CPH1$btnGoFind",
@@ -29,7 +29,21 @@ export async function getListOfLicenses(viewState: string, foundDetails: any[] =
             const page = await setUpNewPage(browser);
             await page.setViewport({ height: 1200, width: 1900 });
             await page.goto(url);
-            await page.type('#ctl00_CPH1_txtsrcOriginalLicenseDate', '8-1-2018');
+            if (!date) {
+                const d = new Date();
+                const currentDay = d.getDate();
+                let desiredDay = 1;
+                if (currentDay - 1 <= 0) {
+                    desiredDay = currentDay;
+                }
+                else {
+                    desiredDay = currentDay - 1;
+                }
+                const month = d.getMonth() + 1;
+                const year = d.getFullYear();
+                date = `${month}-${desiredDay}-${year}`;
+            }
+            await page.type('#ctl00_CPH1_txtsrcOriginalLicenseDate', date);
             await page.click('#ctl00_CPH1_btnGoFind');
             await page.waitForSelector('#ctl00_CPH1_PnlGrid');
             let currentPage = 1;
@@ -41,17 +55,18 @@ export async function getListOfLicenses(viewState: string, foundDetails: any[] =
                 console.log('Searching page ****** ', currentPage);
                 let rows = await page.$$('.GridItemStyle');
                 if (rows) {
-                    await handleRows(rows, browser);
+                    await handleRows(rows, browser, foundDetails);
                 }
 
                 let aRows = await page.$$('.GridAItemStyle');
                 if (aRows) {
-                    await handleRows(aRows, browser);
+                    await handleRows(aRows, browser, foundDetails);
                 }
                 currentPage++;
                 await page.click('#ctl00_CPH1_btnNext');
                 await delay(750);
             }
+            return Promise.resolve(foundDetails);
 
         }
         catch (e) {
@@ -63,38 +78,41 @@ export async function getListOfLicenses(viewState: string, foundDetails: any[] =
     }
 }
 
-export async function handleRows(rows: ElementHandle[], browser: Browser) {
-    const acceptableCities = ['BOISE', 'KUNA', 'STAR', 'EAGLE', 'NAMPA', 'CALDWELL', 'MERIDIAN'];
-    for (let i = 0; i < rows.length; i++) {
-        const cells = await rows[i].$$('td');
-        /**
-         * Result cells legend
-         * 0 - Details image/link
-         * 1 - Name (Last, First)
-         * 2 - License number
-         * 3 - Expiration
-         * 4 - Current
-         * 5 - Status
-         * 6 - Status date,
-         * 7 - Actions
-         * 8 - Posting date
-         * 9 - City, State, Zip
-         * 10 - Profession
-         * 11 - License Type
-         */
+export async function handleRows(rows: ElementHandle[], browser: Browser, foundDetails: any[] = []) {
+    try {
+        for (let i = 0; i < rows.length; i++) {
+            const cells = await rows[i].$$('td');
+            /**
+             * Result cells legend
+             * 0 - Details image/link
+             * 1 - Name (Last, First)
+             * 2 - License number
+             * 3 - Expiration
+             * 4 - Current
+             * 5 - Status
+             * 6 - Status date,
+             * 7 - Actions
+             * 8 - Posting date
+             * 9 - City, State, Zip
+             * 10 - Profession
+             * 11 - License Type
+             */
 
-
-        const licenseType = await getPropertyByHandle(cells[5], 'innerHTML');
-        const cityStateZip = await getPropertyByHandle(cells[9], 'innerHTML');
-        const city = cityStateZip.trim().split(' ')[0].trim().toLowerCase();
-        // If it's a new license and in the treasure valley, let's get all the details
-        // console.log('city test', city, acceptableCities.some(acceptableCity => city.indexOf(acceptableCity) >= 0));
-        if (licenseType.trim() === 'New License' && acceptableCities.some(acceptableCity => city.indexOf(acceptableCity.toLowerCase()) >= 0)) {
-            const detailsUrl = await getPropertyBySelector(cells[0], 'a', 'href');
-            await getDetails(browser, detailsUrl);
+            const licenseStatus = await getPropertyByHandle(cells[5], 'innerHTML');
+            const cityStateZip = await getPropertyByHandle(cells[9], 'innerHTML');
+            const city = cityStateZip.trim().split(' ')[0].trim().toLowerCase();
+            // If it's a new license and in the treasure valley, let's get all the details
+            // console.log('city test', city, acceptableCities.some(acceptableCity => city.indexOf(acceptableCity) >= 0));
+            if (licenseStatus.trim() === 'New License') {
+                const detailsUrl = await getPropertyBySelector(cells[0], 'a', 'href');
+                foundDetails.push(await getDetails(browser, detailsUrl));
+            }
         }
+        return Promise.resolve();
     }
-    return Promise.resolve();
+    catch (e) {
+        return Promise.reject(`Error in rows, ${e}`);
+    }
 }
 
 export async function getDetails(browser: Browser, url: string) {
@@ -109,20 +127,22 @@ export async function getDetails(browser: Browser, url: string) {
         details.streetAddress2 = (await getPropertyBySelector(page, '#ctl00_CPH1_txtAddress2', 'value')).trim();
         details.cityStateZip = (await getPropertyBySelector(page, '#ctl00_CPH1_txtCityStateZip', 'value')).trim();
         const cityStateZipSplit = details.cityStateZip.split(' ');
-        details.city = cityStateZipSplit[0];
-        details.state = cityStateZipSplit[1];
-        details.zip = cityStateZipSplit[2];
+        details.city = cityStateZipSplit.slice(0, cityStateZipSplit.length - 2).join().replace(/,/g, ' ');
+        details.state = cityStateZipSplit[cityStateZipSplit.length - 2];
+        details.zip = cityStateZipSplit[cityStateZipSplit.length - 1];
         details.board = (await getPropertyBySelector(page, '#ctl00_CPH1_txtBureauName', 'value')).trim();
         details.licenseType = (await getPropertyBySelector(page, '#ctl00_CPH1_txtLicenseTypeDescription', 'value')).trim();
         details.number = (await getPropertyBySelector(page, '#ctl00_CPH1_txtLicenseNumber', 'value')).trim();
         details.dateOfIssue = (await getPropertyBySelector(page, '#ctl00_CPH1_txtLicenseIssueDate', 'value')).trim();
         details.status = (await getPropertyBySelector(page, '#ctl00_CPH1_txtLicenseStatus', 'value')).trim();
-
-
-        console.log('details', details);
+        details.region = getRegion(details.city);
         page.close();
+        // details.potentialPhoneDetails = [];
+        // details.potentialPhoneDetails = await getPhoneFromFindPerson(details, config.wpFindPersonAPIKey, details.potentialPhoneDetails);
+        // details.potentialPhoneDetails = await getPhoneFromReverseAddress(details, config.wpReverseAddressAPIKey, details.potentialPhoneDetails);
+        console.log('details', details);
 
-        return Promise.resolve();
+        return Promise.resolve(details);
     }
     catch (e) {
         return Promise.reject(`Error on details page, ${e}`);
@@ -133,4 +153,22 @@ function delay(time) {
     return new Promise((resolve) => {
         setTimeout(resolve, time)
     });
+}
+
+function getRegion(city: string) {
+    const treasureValleyCities = ['BOISE', 'KUNA', 'STAR', 'EAGLE', 'NAMPA', 'CALDWELL', 'MERIDIAN'];
+    const easternIdahoCities = ['POCATELLO', 'IDAHO FALLS', 'SHELLEY', 'BLACKFOOT', 'DRIGGS'];
+    const northernIdahoCities = ['KELLOGG', 'SANDPOINT', 'COEUR D ALENE', 'MOSCOW', 'OROFINO', 'HAYDEN', 'HAYDEN LAKE', 'CLARKSTON', 'LEWISTON'];
+    if (treasureValleyCities.some(acceptableCity => city.indexOf(acceptableCity) >= 0)) {
+        return 'Treasure Valley';
+    }
+    else if (easternIdahoCities.some(acceptableCity => city.indexOf(acceptableCity) >= 0)) {
+        return 'Eastern Idaho';
+    }
+    else if (northernIdahoCities.some(acceptableCity => city.indexOf(acceptableCity) >= 0)) {
+        return 'Northern Idaho'
+    }
+    else {
+        return null;
+    }
 }
