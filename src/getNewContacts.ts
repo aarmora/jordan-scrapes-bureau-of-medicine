@@ -39,5 +39,6 @@ import Webhook from 'webhook-discord';
     }
     catch (e) {
         console.log('error in index', e);
+        await hook.err('BOM License Error', `Error while getting new doctors. ${e}`);
     }
 })();
