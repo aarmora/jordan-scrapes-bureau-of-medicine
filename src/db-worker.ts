@@ -6,7 +6,7 @@ import { sendEmail } from './sendEmail';
     try {
         const dbUrl = `mongodb://${config.mongoUser}:${config.mongoPass}@${config.mongoUrl}/bom-contacts`;
         const db = await dbHelper.initializeMongo(dbUrl);
-        let contacts = await dbHelper.getAllFromMongo(db, 'contacts', { businessPhone: { $ne: ''}, region: 'Treasure Valley'}, {}, 10);
+        let contacts = await dbHelper.getAllFromMongo(db, 'contacts', { businessPhone: { $ne: ''}, region: 'Eastern Idaho'}, {}, 3);
 
         await sendEmail(contacts);
 

@@ -7,7 +7,8 @@
     "start": "tsc && node ./dist/index.js",
     "start:ubuntu": "tsc && node ./dist/index.js ubuntu",
     "start:withHead": "tsc && node ./dist/index.js withHead",
-    "db-worker": "tsc && node ./dist/db-worker.js"
+    "db-worker": "tsc && node ./dist/db-worker.js",
+    "getNewContacts": "tsc && node ./dist/getNewContacts.js"
   },
   "author": "Jordan Hansen",
   "license": "ISC",
