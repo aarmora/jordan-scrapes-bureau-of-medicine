@@ -17,14 +17,20 @@ import * as dbHelper from 'database-helpers';
         if (process.argv[2] === 'withHead' || process.argv[3] === 'withHead') {
             headless = false;
         }
-        for (let month = 1; month < 9; month++) {
-            contacts = await getListOfLicenses(viewState, contacts, ubuntu, headless, `${month}-1-2018`);
-            for (let i = 0; i < contacts.length; i++) {
-                const currentDate = new Date();
+        contacts = await getListOfLicenses(viewState, contacts, ubuntu, headless);
+        for (let i = 0; i < contacts.length; i++) {
+            const currentDate = new Date();
+            if (!contacts[i]._id) {
                 contacts[i].createdAt = currentDate;
                 contacts[i].updatedAt = currentDate;
                 const insertResponse = await dbHelper.insertToMongo(db, 'contacts', contacts[i]);
                 console.log('insert response', insertResponse);
+            }
+            else {
+                contacts[i].updatedAt = currentDate;
+                const updateResponse = await dbHelper.insertToMongo(db, 'contacts', contacts[i]);
+                console.log('insert response', updateResponse);
+
             }
         }
         process.exit();

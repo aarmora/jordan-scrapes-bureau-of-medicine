@@ -99,11 +99,10 @@ export async function handleRows(rows: ElementHandle[], browser: Browser, foundD
              */
 
             const licenseStatus = await getPropertyByHandle(cells[5], 'innerHTML');
-            const cityStateZip = await getPropertyByHandle(cells[9], 'innerHTML');
-            const city = cityStateZip.trim().split(' ')[0].trim().toLowerCase();
+            const licenseNumber = await getPropertyBySelector(cells[2], 'a', 'innerHTML');
             // If it's a new license and in the treasure valley, let's get all the details
-            // console.log('city test', city, acceptableCities.some(acceptableCity => city.indexOf(acceptableCity) >= 0));
-            if (licenseStatus.trim() === 'New License') {
+
+            if (licenseStatus.trim() === 'New License' && !foundDetails.find(details => details.number === licenseNumber.trim())) {
                 const detailsUrl = await getPropertyBySelector(cells[0], 'a', 'href');
                 foundDetails.push(await getDetails(browser, detailsUrl));
             }
@@ -159,13 +158,13 @@ function getRegion(city: string) {
     const treasureValleyCities = ['BOISE', 'KUNA', 'STAR', 'EAGLE', 'NAMPA', 'CALDWELL', 'MERIDIAN'];
     const easternIdahoCities = ['POCATELLO', 'IDAHO FALLS', 'SHELLEY', 'BLACKFOOT', 'DRIGGS'];
     const northernIdahoCities = ['KELLOGG', 'SANDPOINT', 'COEUR D ALENE', 'MOSCOW', 'OROFINO', 'HAYDEN', 'HAYDEN LAKE', 'CLARKSTON', 'LEWISTON'];
-    if (treasureValleyCities.some(acceptableCity => city.indexOf(acceptableCity) >= 0)) {
+    if (treasureValleyCities.some(acceptableCity => city.toLowerCase().indexOf(acceptableCity.toLowerCase()) >= 0)) {
         return 'Treasure Valley';
     }
-    else if (easternIdahoCities.some(acceptableCity => city.indexOf(acceptableCity) >= 0)) {
+    else if (easternIdahoCities.some(acceptableCity => city.toLowerCase().indexOf(acceptableCity.toLowerCase()) >= 0)) {
         return 'Eastern Idaho';
     }
-    else if (northernIdahoCities.some(acceptableCity => city.indexOf(acceptableCity) >= 0)) {
+    else if (northernIdahoCities.some(acceptableCity => city.toLowerCase().indexOf(acceptableCity.toLowerCase()) >= 0)) {
         return 'Northern Idaho'
     }
     else {
