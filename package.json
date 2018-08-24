@@ -9,7 +9,7 @@
     "start:withHead": "tsc && node ./dist/index.js withHead",
     "db-worker": "tsc && node ./dist/db-worker.js",
     "getNewContacts": "tsc && node ./dist/getNewContacts.js",
-    "getNewContactsUbuntu": "tsc && node ./dist/getNewContacts.js ubuntu"
+    "getNewContacts:ubuntu": "tsc && node ./dist/getNewContacts.js ubuntu"
   },
   "author": "Jordan Hansen",
   "license": "ISC",
