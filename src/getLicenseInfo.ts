@@ -1,20 +1,7 @@
-import puppeteer, { Browser, ElementHandle, Page } from 'puppeteer';
+import puppeteer, { Browser, ElementHandle } from 'puppeteer';
 import { setUpNewPage, getPropertyByHandle, getPropertyBySelector } from 'puppeteer-helpers';
-import { getPhoneFromFindPerson, getPhoneFromReverseAddress } from './wpHelpers';
-import { config } from './config';
 
-export async function getListOfLicenses(viewState: string, foundDetails: any[] = [], ubuntu = false, headless = true, date?: string) {
-    const formData = {
-        ctl00$CPH1$txtsrcOriginalLicenseDate: "8-1-2018",
-        ctl00$ScriptManager1: "ctl00$CPH1$UpdatePnl0|ctl00$CPH1$btnGoFind",
-        ctl00_ScriptManager1_HiddenField: ";;AjaxControlToolkit, Version=3.5.40412.0, Culture=neutral, PublicKeyToken=28f01b0e84b6d53e:en-US:065e08c0-e2d1-42ff-9483-e5c14441b311:de1feab2:fcf0e993:f2c8e708:720a52bf:f9cec9bc:589eaa30:698129cf:fb9b4c57:ccb96cf9:8ad18101:ab09e3fe:87104b7c:a67c2700:8613aea7:3202a5a2:be6fb298;",
-        ctl00$CPH1$chksrcHasFA: "None",
-        __VIEWSTATE: viewState,
-        __VIEWSTATEGENERATOR: "F219E5FD",
-        __ASYNCPOST: true,
-        ctl00$CPH1$btnGoFind: "Start Search"
-    };
-
+export async function getListOfLicenses(foundDetails: any[] = [], ubuntu = false, headless = true, date?: string) {
     let browser: Browser;
     try {
         if (ubuntu) {
