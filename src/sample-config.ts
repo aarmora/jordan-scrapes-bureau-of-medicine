@@ -4,5 +4,5 @@ export const config = {
     mongoUrl: "<mongoUrl>",
     mongoDB: "<mongo-db>",
     mongoCollection: "<mongo-collection>",
-    mailGunApiKey: '<mailgun-api-key>'
+    discordWebhook: "<url>"
 };

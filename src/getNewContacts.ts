@@ -4,7 +4,7 @@ import * as dbHelper from 'database-helpers';
 import Webhook from 'webhook-discord';
 
 (async () => {
-    const hook = new Webhook('https://discordapp.com/api/webhooks/482658848293781514/VyQ-idP7Z-EIhiaUn014Bpds4DRxyW7s1NXywvpCmnRacdUY8kNGscoE5koMmGinqLki');
+    const hook = new Webhook(config.discordWebhook);
     try {
         const dbUrl = `mongodb://${config.mongoUser}:${config.mongoPass}@${config.mongoUrl}/${config.mongoDB}`;
         const db = await dbHelper.initializeMongo(dbUrl);

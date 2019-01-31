@@ -87,7 +87,6 @@ export async function handleRows(rows: ElementHandle[], browser: Browser, foundD
 
             const licenseStatus = await getPropertyByHandle(cells[5], 'innerHTML');
             const licenseNumber = await getPropertyBySelector(cells[2], 'a', 'innerHTML');
-            // If it's a new license and in the treasure valley, let's get all the details
 
             if (licenseStatus.trim() === 'New License' && !foundDetails.find(details => details.number === licenseNumber.trim())) {
                 const detailsUrl = await getPropertyBySelector(cells[0], 'a', 'href');
